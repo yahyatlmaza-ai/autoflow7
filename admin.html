@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShipFlow - لوحة تحكم المشرف</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #0ea5e9;
+            --primary-dark: #0284c7;
+            --secondary: #f97316;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --dark: #0f172a;
+            --gray-700: #334155;
+            --gray-600: #475569;
+            --gray-500: #64748b;
+            --gray-400: #94a3b8;
+            --gray-300: #cbd5e1;
+            --gray-200: #e2e8f0;
+            --gray-100: #f1f5f9;
+            --white: #ffffff;
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+            --gradient-primary: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%);
+            --gradient-dark: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        }
+        
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            color: var(--dark);
+            line-height: 1.5;
+        }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--gray-200); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 10px; }
+        
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        
+        /* Header */
+        .header {
+            background: var(--gradient-dark);
+            color: white;
+            padding: 20px 0;
+            border-radius: 0 0 30px 30px;
+            margin-bottom: 30px;
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--gradient-primary);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        
+        .logo-text {
+            font-size: 28px;
+            font-weight: 900;
+        }
+        
+        .logo-text span {
+            color: var(--secondary);
+        }
+        
+        .stats-cards {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .stat-badge {
+            background: rgba(255,255,255,0.15);
+            padding: 8px 20px;
+            border-radius: 40px;
+            font-weight: 600;
+        }
+        
+        /* Search Section */
+        .search-section {
+            background: white;
+            border-radius: 24px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--gray-200);
+        }
+        
+        .search-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--primary);
+        }
+        
+        .search-form {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .search-input {
+            flex: 1;
+            padding: 14px 18px;
+            border: 2px solid var(--gray-200);
+            border-radius: 16px;
+            font-size: 16px;
+            font-family: 'Cairo', sans-serif;
+            transition: all 0.2s;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(14,165,233,0.1);
+        }
+        
+        .btn {
+            padding: 12px 28px;
+            border-radius: 9999px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'Cairo', sans-serif;
+        }
+        
+        .btn-primary {
+            background: var(--gradient-primary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .btn-outline {
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            background: transparent;
+        }
+        
+        .btn-outline:hover {
+            background: var(--gradient-primary);
+            color: white;
+        }
+        
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+        
+        /* Users Table */
+        .users-table-section {
+            background: white;
+            border-radius: 24px;
+            padding: 25px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--gray-200);
+        }
+        
+        .users-table {
+            width: 100%;
+            overflow-x: auto;
+        }
+        
+        .users-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .users-table th,
+        .users-table td {
+            padding: 12px;
+            text-align: right;
+            border-bottom: 1px solid var(--gray-200);
+        }
+        
+        .users-table th {
+            color: var(--gray-600);
+            font-weight: 600;
+            background: var(--gray-50);
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 40px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .status-active {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .status-expired {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .status-trial {
+            background: #fed7aa;
+            color: #9b3412;
+        }
+        
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 32px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            position: relative;
+            animation: fadeIn 0.3s ease;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 28px;
+            cursor: pointer;
+            color: var(--gray-400);
+        }
+        
+        .modal-close:hover {
+            color: var(--danger);
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--gray-200);
+            border-radius: 12px;
+            font-family: 'Cairo', sans-serif;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px dashed var(--gray-200);
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: var(--gray-600);
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            display: block;
+        }
+        
+        .alert-danger {
+            background: #fee2e2;
+            color: #991b1b;
+            display: block;
+        }
+        
+        .alert-warning {
+            background: #fed7aa;
+            color: #9b3412;
+            display: block;
+        }
+        
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                text-align: center;
+            }
+            .search-form {
+                flex-direction: column;
+            }
+            .stats-cards {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <div class="logo-icon"><i class="fas fa-ship"></i></div>
+                    <div class="logo-text">Ship<span>Flow</span> <span style="font-size: 14px;">| المشرف</span></div>
+                </div>
+                <div class="stats-cards">
+                    <div class="stat-badge"><i class="fas fa-users"></i> <span id="totalUsers">0</span> مستخدم</div>
+                    <div class="stat-badge"><i class="fas fa-check-circle"></i> <span id="activeUsers">0</span> مفعل</div>
+                    <div class="stat-badge"><i class="fas fa-hourglass-half"></i> <span id="trialUsers">0</span> تجريبي</div>
+                    <div class="stat-badge"><i class="fas fa-store"></i> <span id="totalStores">0</span> متجر</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <!-- Search Section -->
+        <div class="search-section">
+            <div class="search-title">
+                <i class="fas fa-search"></i>
+                البحث عن مستخدم
+            </div>
+            <div class="search-form">
+                <input type="email" id="searchEmail" class="search-input" placeholder="البريد الإلكتروني">
+                <input type="text" id="searchName" class="search-input" placeholder="الاسم">
+                <button class="btn btn-primary" onclick="searchUser()">
+                    <i class="fas fa-search"></i> بحث
+                </button>
+                <button class="btn btn-outline" onclick="resetSearch()">
+                    <i class="fas fa-undo"></i> عرض الكل
+                </button>
+            </div>
+            <div id="searchResult" style="margin-top: 20px;"></div>
+        </div>
+        
+        <!-- Users Table -->
+        <div class="users-table-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+                <h3><i class="fas fa-users"></i> جميع المستخدمين</h3>
+                <button class="btn btn-primary" onclick="refreshUsers()">
+                    <i class="fas fa-sync-alt"></i> تحديث
+                </button>
+            </div>
+            <div class="users-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>الاسم</th>
+                            <th>البريد الإلكتروني</th>
+                            <th>رقم الهاتف</th>
+                            <th>المتجر</th>
+                            <th>نوع الاشتراك</th>
+                            <th>تاريخ الانتهاء</th>
+                            <th>الحالة</th>
+                            <th>تاريخ التسجيل</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <tr><td colspan="10" style="text-align: center;">جاري التحميل...<\/td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Activate Modal -->
+    <div id="activateModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeActivateModal()">&times;</span>
+            <h2 style="margin-bottom: 20px;"><i class="fas fa-crown"></i> تفعيل الاشتراك</h2>
+            <div id="modalUserInfo" style="background: var(--gray-100); padding: 15px; border-radius: 16px; margin-bottom: 20px;"></div>
+            <form id="activateForm">
+                <div class="form-group">
+                    <label>نوع الباقة</label>
+                    <select id="subscriptionPlan" required>
+                        <option value="1month">شهر واحد - 5000 دج</option>
+                        <option value="3months">3 أشهر - 12000 دج</option>
+                        <option value="6months">6 أشهر - 20000 دج</option>
+                        <option value="1year">سنة كاملة - 30000 دج</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>ملاحظات (رقم العملية)</label>
+                    <input type="text" id="subscriptionNotes" placeholder="رقم العملية، اسم الدافع...">
+                </div>
+                <button type="submit" class="btn btn-success" style="width: 100%;">
+                    <i class="fas fa-check-circle"></i> تفعيل الاشتراك
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- View User Modal -->
+    <div id="viewUserModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeViewUserModal()">&times;</span>
+            <h2 style="margin-bottom: 20px;"><i class="fas fa-user-circle"></i> تفاصيل المستخدم</h2>
+            <div id="viewUserInfo"></div>
+        </div>
+    </div>
+    
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <h2 style="margin-bottom: 20px; text-align: center;"><i class="fas fa-lock"></i> تسجيل الدخول</h2>
+            <div id="loginError" class="alert alert-danger" style="display: none;"></div>
+            <form id="adminLoginForm">
+                <div class="form-group">
+                    <label>البريد الإلكتروني</label>
+                    <input type="email" id="adminEmail" required>
+                </div>
+                <div class="form-group">
+                    <label>كلمة المرور</label>
+                    <input type="password" id="adminPassword" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    <i class="fas fa-sign-in-alt"></i> تسجيل الدخول
+                </button>
+            </form>
+            <div style="text-align: center; margin-top: 20px;">
+                <a href="#" onclick="showRegister()" style="color: var(--primary);">إنشاء حساب مشرف</a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Register Modal -->
+    <div id="registerModal" class="modal">
+        <div class="modal-content">
+            <h2 style="margin-bottom: 20px; text-align: center;"><i class="fas fa-user-plus"></i> إنشاء حساب مشرف</h2>
+            <div id="registerError" class="alert alert-danger" style="display: none;"></div>
+            <div id="registerSuccess" class="alert alert-success" style="display: none;"></div>
+            <form id="adminRegisterForm">
+                <div class="form-group">
+                    <label>الاسم الأول</label>
+                    <input type="text" id="regFirstName" required>
+                </div>
+                <div class="form-group">
+                    <label>الاسم الأخير</label>
+                    <input type="text" id="regLastName" required>
+                </div>
+                <div class="form-group">
+                    <label>البريد الإلكتروني</label>
+                    <input type="email" id="regEmail" required>
+                </div>
+                <div class="form-group">
+                    <label>رقم الهاتف</label>
+                    <input type="tel" id="regPhone">
+                </div>
+                <div class="form-group">
+                    <label>كلمة المرور</label>
+                    <input type="password" id="regPassword" required>
+                </div>
+                <div class="form-group">
+                    <label>تأكيد كلمة المرور</label>
+                    <input type="password" id="regConfirmPassword" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    <i class="fas fa-user-plus"></i> إنشاء حساب المشرف
+                </button>
+            </form>
+            <div style="text-align: center; margin-top: 20px;">
+                <a href="#" onclick="showLogin()" style="color: var(--primary);">تسجيل الدخول</a>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
+        import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, getDocs, query, where } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyDBGgFLz95r6S_WxYX10nv-U_7pNMNauqs",
+            authDomain: "octomatic-platform.firebaseapp.com",
+            projectId: "octomatic-platform",
+            storageBucket: "octomatic-platform.firebasestorage.app",
+            messagingSenderId: "707712231870",
+            appId: "1:707712231870:web:cdf9af5140782a896d31ef"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        
+        let allUsers = [];
+        let allStores = [];
+        let selectedUser = null;
+        
+        // Modal functions
+        window.showLogin = () => {
+            document.getElementById('registerModal').classList.remove('active');
+            document.getElementById('loginModal').classList.add('active');
+        };
+        
+        window.showRegister = () => {
+            document.getElementById('loginModal').classList.remove('active');
+            document.getElementById('registerModal').classList.add('active');
+        };
+        
+        window.closeLoginModal = () => document.getElementById('loginModal').classList.remove('active');
+        window.closeRegisterModal = () => document.getElementById('registerModal').classList.remove('active');
+        
+        // Load all users from Firestore
+        async function loadAllUsers() {
+            try {
+                const usersSnapshot = await getDocs(collection(db, 'users'));
+                allUsers = [];
+                usersSnapshot.forEach(doc => {
+                    allUsers.push({ id: doc.id, ...doc.data() });
+                });
+                
+                // Load stores count
+                const storesSnapshot = await getDocs(collection(db, 'stores'));
+                allStores = [];
+                storesSnapshot.forEach(doc => {
+                    allStores.push({ id: doc.id, ...doc.data() });
+                });
+                
+                renderUsersTable(allUsers);
+                updateStats();
+            } catch (error) {
+                console.error('Error loading users:', error);
+                document.getElementById('usersTableBody').innerHTML = '<tr><td colspan="10" style="text-align: center; color: red;">خطأ في تحميل البيانات: ' + error.message + '</td></tr>';
+            }
+        }
+        
+        function renderUsersTable(users) {
+            const tbody = document.getElementById('usersTableBody');
+            if (!users.length) {
+                tbody.innerHTML = '<tr><td colspan="10" style="text-align: center;">لا يوجد مستخدمين مسجلين<\/td><\/tr>';
+                return;
+            }
+            
+            const now = new Date();
+            tbody.innerHTML = users.map((user, index) => {
+                const subscriptionEnd = user.subscriptionEnd ? new Date(user.subscriptionEnd) : null;
+                const trialEnd = user.trialEnd ? new Date(user.trialEnd) : null;
+                const isActive = subscriptionEnd && subscriptionEnd > now;
+                const isTrial = !isActive && trialEnd && trialEnd > now;
+                let status = '', statusClass = '';
+                
+                if (isActive) {
+                    status = 'مفعل';
+                    statusClass = 'status-active';
+                } else if (isTrial) {
+                    status = 'تجريبي';
+                    statusClass = 'status-trial';
+                } else {
+                    status = 'منتهي';
+                    statusClass = 'status-expired';
+                }
+                
+                const endDate = subscriptionEnd || trialEnd;
+                const createdAt = user.createdAt ? new Date(user.createdAt) : null;
+                
+                // تحديد ما إذا كان المستخدم مشرفاً
+                const isAdmin = user.role === 'admin';
+                
+                return `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${user.firstName || ''} ${user.lastName || ''} ${isAdmin ? '<span style="color: var(--primary);"> 👑</span>' : ''}</td>
+                        <td>${user.email || '---'}</td>
+                        <td>${user.phone || '---'}</td>
+                        <td>${user.storeName || '---'}</td>
+                        <td>${user.subscriptionPlan || 'تجريبي'}</td>
+                        <td>${endDate ? endDate.toLocaleDateString('ar-EG') : '---'}</td>
+                        <td><span class="status-badge ${statusClass}">${status}</span></td>
+                        <td>${createdAt ? createdAt.toLocaleDateString('ar-EG') : '---'}</td>
+                        <td>
+                            <button class="btn btn-success" style="padding: 6px 12px; font-size: 12px; margin: 2px;" onclick="openActivateModal('${user.id}')" title="تفعيل الاشتراك">
+                                <i class="fas fa-crown"></i>
+                            </button>
+                            <button class="btn btn-primary" style="padding: 6px 12px; font-size: 12px; margin: 2px;" onclick="viewUserDetails('${user.id}')" title="عرض التفاصيل">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+        
+        function updateStats() {
+            const now = new Date();
+            const active = allUsers.filter(u => u.subscriptionEnd && new Date(u.subscriptionEnd) > now).length;
+            const trial = allUsers.filter(u => !u.subscriptionEnd && u.trialEnd && new Date(u.trialEnd) > now).length;
+            document.getElementById('totalUsers').innerHTML = allUsers.length;
+            document.getElementById('activeUsers').innerHTML = active;
+            document.getElementById('trialUsers').innerHTML = trial;
+            document.getElementById('totalStores').innerHTML = allStores.length;
+        }
+        
+        window.refreshUsers = () => loadAllUsers();
+        
+        window.searchUser = () => {
+            const email = document.getElementById('searchEmail').value.toLowerCase();
+            const name = document.getElementById('searchName').value.toLowerCase();
+            
+            let filtered = allUsers;
+            if (email) {
+                filtered = filtered.filter(u => u.email?.toLowerCase().includes(email));
+            }
+            if (name) {
+                filtered = filtered.filter(u => (u.firstName?.toLowerCase().includes(name) || u.lastName?.toLowerCase().includes(name)));
+            }
+            
+            const resultDiv = document.getElementById('searchResult');
+            
+            if (filtered.length === 0) {
+                resultDiv.innerHTML = `<div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> لا يوجد مستخدمون مطابقون للبحث</div>`;
+                setTimeout(() => resultDiv.innerHTML = '', 3000);
+            } else {
+                resultDiv.innerHTML = `<div class="alert alert-success"><i class="fas fa-check-circle"></i> تم العثور على ${filtered.length} مستخدم</div>`;
+                setTimeout(() => resultDiv.innerHTML = '', 3000);
+            }
+            renderUsersTable(filtered);
+        };
+        
+        window.resetSearch = () => {
+            document.getElementById('searchEmail').value = '';
+            document.getElementById('searchName').value = '';
+            renderUsersTable(allUsers);
+            document.getElementById('searchResult').innerHTML = '';
+        };
+        
+        window.viewUserDetails = async (userId) => {
+            const user = allUsers.find(u => u.id === userId);
+            if (user) {
+                const subscriptionEnd = user.subscriptionEnd ? new Date(user.subscriptionEnd).toLocaleDateString('ar-EG') : 'لا يوجد';
+                const trialEnd = user.trialEnd ? new Date(user.trialEnd).toLocaleDateString('ar-EG') : 'لا يوجد';
+                const createdAt = user.createdAt ? new Date(user.createdAt).toLocaleDateString('ar-EG') : 'غير محدد';
+                
+                document.getElementById('viewUserInfo').innerHTML = `
+                    <div class="info-row"><span class="info-label">الاسم الكامل:</span><span class="info-value">${user.firstName || ''} ${user.lastName || ''}</span></div>
+                    <div class="info-row"><span class="info-label">البريد الإلكتروني:</span><span class="info-value">${user.email || '---'}</span></div>
+                    <div class="info-row"><span class="info-label">رقم الهاتف:</span><span class="info-value">${user.phone || '---'}</span></div>
+                    <div class="info-row"><span class="info-label">اسم المتجر:</span><span class="info-value">${user.storeName || '---'}</span></div>
+                    <div class="info-row"><span class="info-label">نوع الاشتراك:</span><span class="info-value">${user.subscriptionPlan || 'تجريبي'}</span></div>
+                    <div class="info-row"><span class="info-label">تاريخ انتهاء الاشتراك:</span><span class="info-value">${subscriptionEnd}</span></div>
+                    <div class="info-row"><span class="info-label">تاريخ انتهاء التجربة:</span><span class="info-value">${trialEnd}</span></div>
+                    <div class="info-row"><span class="info-label">تاريخ التسجيل:</span><span class="info-value">${createdAt}</span></div>
+                    <div class="info-row"><span class="info-label">معرف الجهاز:</span><span class="info-value">${user.deviceId ? user.deviceId.substring(0, 20) + '...' : '---'}</span></div>
+                    <div class="info-row"><span class="info-label">الدور:</span><span class="info-value">${user.role === 'admin' ? 'مدير' : 'مستخدم'}</span></div>
+                `;
+                document.getElementById('viewUserModal').classList.add('active');
+            }
+        };
+        
+        window.closeViewUserModal = () => {
+            document.getElementById('viewUserModal').classList.remove('active');
+        };
+        
+        window.openActivateModal = async (userId) => {
+            selectedUser = allUsers.find(u => u.id === userId);
+            if (selectedUser) {
+                document.getElementById('modalUserInfo').innerHTML = `
+                    <div class="info-row"><span class="info-label">الاسم:</span><span class="info-value">${selectedUser.firstName || ''} ${selectedUser.lastName || ''}</span></div>
+                    <div class="info-row"><span class="info-label">البريد الإلكتروني:</span><span class="info-value">${selectedUser.email || '---'}</span></div>
+                    <div class="info-row"><span class="info-label">رقم الهاتف:</span><span class="info-value">${selectedUser.phone || '---'}</span></div>
+                    <div class="info-row"><span class="info-label">المتجر:</span><span class="info-value">${selectedUser.storeName || '---'}</span></div>
+                `;
+                document.getElementById('activateModal').classList.add('active');
+            }
+        };
+        
+        window.closeActivateModal = () => {
+            document.getElementById('activateModal').classList.remove('active');
+            selectedUser = null;
+        };
+        
+        document.getElementById('activateForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!selectedUser) return;
+            
+            const plan = document.getElementById('subscriptionPlan').value;
+            const notes = document.getElementById('subscriptionNotes').value;
+            
+            let endDate = new Date();
+            let planName = '';
+            
+            switch(plan) {
+                case '1month': endDate.setMonth(endDate.getMonth() + 1); planName = 'شهر واحد'; break;
+                case '3months': endDate.setMonth(endDate.getMonth() + 3); planName = '3 أشهر'; break;
+                case '6months': endDate.setMonth(endDate.getMonth() + 6); planName = '6 أشهر'; break;
+                case '1year': endDate.setFullYear(endDate.getFullYear() + 1); planName = 'سنة كاملة'; break;
+            }
+            
+            try {
+                await updateDoc(doc(db, 'users', selectedUser.id), {
+                    subscriptionPlan: planName,
+                    subscriptionEnd: endDate.toISOString(),
+                    subscriptionStart: new Date().toISOString(),
+                    subscriptionNotes: notes,
+                    trialEnd: null
+                });
+                
+                closeActivateModal();
+                document.getElementById('subscriptionNotes').value = '';
+                
+                const resultDiv = document.getElementById('searchResult');
+                resultDiv.innerHTML = `<div class="alert alert-success"><i class="fas fa-check-circle"></i> تم تفعيل الاشتراك بنجاح للمستخدم ${selectedUser.firstName} ${selectedUser.lastName}</div>`;
+                setTimeout(() => resultDiv.innerHTML = '', 3000);
+                await loadAllUsers();
+            } catch (error) {
+                const resultDiv = document.getElementById('searchResult');
+                resultDiv.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> خطأ: ${error.message}</div>`;
+                setTimeout(() => resultDiv.innerHTML = '', 3000);
+            }
+        });
+        
+        // Admin Login
+        document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const errorDiv = document.getElementById('loginError');
+            errorDiv.style.display = 'none';
+            const email = document.getElementById('adminEmail').value;
+            const password = document.getElementById('adminPassword').value;
+            
+            try {
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
+                
+                if (userDoc.exists() && userDoc.data().role === 'admin') {
+                    closeLoginModal();
+                    await loadAllUsers();
+                } else {
+                    await signOut(auth);
+                    errorDiv.textContent = 'ليس لديك صلاحية المشرف';
+                    errorDiv.style.display = 'block';
+                }
+            } catch (error) {
+                errorDiv.textContent = error.code === 'auth/user-not-found' ? 'لا يوجد حساب' : 'كلمة المرور غير صحيحة';
+                errorDiv.style.display = 'block';
+            }
+        });
+        
+        // Admin Register
+        document.getElementById('adminRegisterForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const errorDiv = document.getElementById('registerError');
+            const successDiv = document.getElementById('registerSuccess');
+            errorDiv.style.display = 'none';
+            successDiv.style.display = 'none';
+            
+            const firstName = document.getElementById('regFirstName').value;
+            const lastName = document.getElementById('regLastName').value;
+            const email = document.getElementById('regEmail').value;
+            const phone = document.getElementById('regPhone').value;
+            const password = document.getElementById('regPassword').value;
+            const confirm = document.getElementById('regConfirmPassword').value;
+            
+            if (password !== confirm) {
+                errorDiv.textContent = 'كلمة المرور غير متطابقة';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                await setDoc(doc(db, 'users', userCredential.user.uid), {
+                    firstName, lastName, email, phone,
+                    role: 'admin',
+                    createdAt: new Date().toISOString()
+                });
+                
+                successDiv.textContent = 'تم إنشاء حساب المشرف بنجاح! جاري التحويل...';
+                successDiv.style.display = 'block';
+                
+                setTimeout(() => {
+                    closeRegisterModal();
+                    location.reload();
+                }, 1500);
+            } catch (error) {
+                errorDiv.textContent = error.code === 'auth/email-already-in-use' ? 'البريد مستخدم بالفعل' : 'حدث خطأ';
+                errorDiv.style.display = 'block';
+            }
+        });
+        
+        // Auth state
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                const userDoc = await getDoc(doc(db, 'users', user.uid));
+                if (userDoc.exists() && userDoc.data().role === 'admin') {
+                    document.getElementById('loginModal').classList.remove('active');
+                    await loadAllUsers();
+                } else {
+                    await signOut(auth);
+                    document.getElementById('loginModal').classList.add('active');
+                }
+            } else {
+                document.getElementById('loginModal').classList.add('active');
+            }
+        });
+    </script>
+</body>
+</html>
