@@ -1,17 +1,9 @@
 import supabase from './_supabase.js';
-import { setCORSHeaders, safe, getIP, logActivity, ERRORS } from './_helpers.js';
+import { setCORSHeaders, safe, getIP, logActivity, ERRORS, generateUserId, isAdminUser } from './_helpers.js';
 
-// Simple admin auth — check if user is admin
+// Admin auth check — delegate to shared helper so demo users cannot spoof access.
 async function isAdmin(req) {
-  const userId = req.headers['x-user-id'];
-  if (!userId) return false;
-  if (userId === 'demo') return true; // demo has admin in demo mode
-  const { data } = await supabase
-    .from('user_profiles')
-    .select('role')
-    .eq('user_id', userId)
-    .maybeSingle();
-  return data?.role === 'admin' || data?.role === 'super_admin';
+  return isAdminUser(supabase, req);
 }
 
 export default async function handler(req, res) {
@@ -45,7 +37,7 @@ export default async function handler(req, res) {
 
       // Enrich with profile data
       const enriched = await Promise.all((data || []).map(async (reg) => {
-        const userId = 'af_' + require('crypto').createHash('sha256').update(reg.email).digest('hex').slice(0, 20);
+        const userId = generateUserId(reg.email);
         const { data: profile } = await supabase
           .from('user_profiles')
           .select('name, company, plan, trial_end')
@@ -126,7 +118,7 @@ export default async function handler(req, res) {
       if (plan) {
         await supabase.from('user_profiles')
           .update({ plan })
-          .eq('user_id', 'af_' + require('crypto').createHash('sha256').update(email).digest('hex').slice(0, 20))
+          .eq('user_id', generateUserId(email))
           .catch(() => {});
         await supabase.from('subscriptions')
           .update({ plan, status: 'active' })

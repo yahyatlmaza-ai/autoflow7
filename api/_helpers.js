@@ -1,7 +1,9 @@
 import crypto from 'crypto';
 
 // ── Platform constants ────────────────────────────────────────────────────────
-export const PLATFORM_NAME = 'auto Flow';
+export const PLATFORM_NAME = 'DeliverPro';
+// NOTE: The default OTP_SECRET string is kept as-is so that OTP hashes produced
+// by the previous platform name remain verifiable. Override via env in prod.
 export const OTP_SECRET = process.env.OTP_SECRET || 'autoflow-otp-secret-key-2025-secure';
 export const SESSION_DURATION_DAYS = 30;
 export const TRIAL_DAYS = 10;
@@ -64,11 +66,24 @@ export function generateTenantId(email) {
 }
 
 export function generateUserId(email) {
+  // Deterministic by email so register and login always produce the same userId.
   return 'af_' + crypto
     .createHash('sha256')
-    .update(email.toLowerCase() + Date.now())
+    .update(String(email || '').toLowerCase().trim())
     .digest('hex')
     .slice(0, 20);
+}
+
+// ── Admin auth check (shared between admin.js and settings.js) ────────────────
+export async function isAdminUser(supabase, req) {
+  const userId = req.headers['x-user-id'];
+  if (!userId || userId === 'demo') return false;
+  const { data } = await supabase
+    .from('user_profiles')
+    .select('role')
+    .eq('user_id', userId)
+    .maybeSingle();
+  return data?.role === 'admin' || data?.role === 'super_admin';
 }
 
 // Simple password hashing (SHA-256 + salt; use bcrypt in production)

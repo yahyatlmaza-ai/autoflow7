@@ -30,7 +30,17 @@ export default async function handler(req, res) {
     if (req.method === 'PUT') {
       const { id, ...updates } = req.body || {};
       if (!id) return res.status(400).json(ERRORS.MISSING_FIELDS(['id']));
-      const { data, error } = await supabase.from('customers').update(updates).eq('id', safe(id)).select().single();
+      // Whitelist allowed fields — never let callers overwrite user_id or other
+      // tenant-sensitive columns.
+      const allowed = ['name', 'phone', 'email', 'wilaya'];
+      const safeUpdates = {};
+      allowed.forEach(k => {
+        if (updates[k] !== undefined) safeUpdates[k] = safe(String(updates[k]));
+      });
+      let query = supabase.from('customers').update(safeUpdates).eq('id', safe(id));
+      // Restrict update to rows owned by the caller (when not demo).
+      if (userId && userId !== 'demo') query = query.eq('user_id', userId);
+      const { data, error } = await query.select().single();
       if (error) throw error;
       return res.status(200).json(data);
     }

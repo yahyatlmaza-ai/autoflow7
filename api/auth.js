@@ -22,7 +22,9 @@ export default async function handler(req, res) {
   // ══════════════════════════════════════════════════════════════════════════
   if (action === 'register') {
     const email    = safe(body.email).toLowerCase();
-    const password = safe(body.password, 100);
+    // Do NOT run passwords through safe() — it strips valid special characters.
+    // Passwords are only ever hashed, never interpolated into HTML or SQL.
+    const password = String(body.password || '').slice(0, 100);
     const name     = safe(body.name);
     const company  = safe(body.company);
     const phone    = safe(body.phone);
@@ -387,7 +389,8 @@ export default async function handler(req, res) {
   // ══════════════════════════════════════════════════════════════════════════
   if (action === 'login') {
     const email    = safe(body.email).toLowerCase();
-    const password = safe(body.password, 100);
+    // See note in register: passwords are not sanitized, only length-limited.
+    const password = String(body.password || '').slice(0, 100);
 
     if (!email || !password) {
       return res.status(400).json(ERRORS.MISSING_FIELDS(['email', 'password']));
@@ -434,8 +437,8 @@ export default async function handler(req, res) {
         return res.status(401).json(ERRORS.INVALID_CREDENTIALS);
       }
 
-      // Get profile
-      const userId = 'af_' + crypto.createHash('sha256').update(email).digest('hex').slice(0, 20);
+      // Get profile — must match the ID format used at registration time.
+      const userId = generateUserId(email);
       const { data: profile } = await supabase
         .from('user_profiles')
         .select('*')

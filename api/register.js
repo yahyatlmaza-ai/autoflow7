@@ -278,7 +278,8 @@ export default async function handler(req, res) {
       const finalCompany = company || meta.company || '';
       const finalPlan = plan || meta.plan || 'trial';
       const trialEnd = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000).toISOString();
-      const userId = 'af_' + crypto.randomBytes(8).toString('hex');
+      // Deterministic by email so login lookups resolve to the same userId.
+      const userId = generateUserId(reg.email);
 
       // Create user profile
       await supabase.from('user_profiles').upsert({
