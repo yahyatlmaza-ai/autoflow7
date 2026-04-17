@@ -11,6 +11,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Plus, RefreshCw, Trash2, Send, AlertCircle, CheckCircle, Save } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { useToast } from '../../components/Toast';
+import { useConfirm } from '../../components/ConfirmDialog';
 import {
   carriersApi, productsApi, returnsApi, settingsApi, shipmentsApi,
   storesApi, teamApi, webhooksApi, ordersApi,
@@ -89,6 +91,8 @@ const dangerBtn =
 
 export function StoresTab() {
   const { lang } = useApp();
+  const toast = useToast();
+  const confirmAction = useConfirm();
   const [items, setItems] = useState<ApiStore[]>([]);
   const [platforms, setPlatforms] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -120,16 +124,28 @@ export function StoresTab() {
   const sync = async (id: number) => {
     try {
       await storesApi.sync(id);
+      toast.success('Store synced', 'Fresh orders imported from the platform.');
       refresh();
     } catch (e) {
-      alert(humanizeError(e, lang));
+      toast.error('Sync failed', humanizeError(e, lang));
     }
   };
 
   const remove = async (id: number) => {
-    if (!confirm('Delete this store?')) return;
-    await storesApi.remove(id);
-    refresh();
+    const ok = await confirmAction({
+      title: 'Delete this store?',
+      description: 'Connected orders will be kept but no new orders will be imported.',
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await storesApi.remove(id);
+      toast.success('Store removed');
+      refresh();
+    } catch (e) {
+      toast.error('Delete failed', humanizeError(e, lang));
+    }
   };
 
   return (
@@ -193,6 +209,8 @@ export function StoresTab() {
 
 export function CarriersTab() {
   const { lang } = useApp();
+  const toast = useToast();
+  const confirmAction = useConfirm();
   const [items, setItems] = useState<ApiCarrier[]>([]);
   const [providers, setProviders] = useState<string[]>([]);
   const [wilayas, setWilayas] = useState<string[]>([]);
@@ -230,10 +248,21 @@ export function CarriersTab() {
   };
 
   const remove = async (id: number) => {
-    if (!confirm('Delete this carrier (and all its delivery rates)?')) return;
-    await carriersApi.remove(id);
-    if (selectedCarrier === id) setSelectedCarrier(null);
-    refresh();
+    const ok = await confirmAction({
+      title: 'Delete this carrier?',
+      description: 'All of its delivery rates will be deleted too. This cannot be undone.',
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await carriersApi.remove(id);
+      if (selectedCarrier === id) setSelectedCarrier(null);
+      toast.success('Carrier removed');
+      refresh();
+    } catch (e) {
+      toast.error('Delete failed', humanizeError(e, lang));
+    }
   };
 
   const addRate = async (e: FormEvent) => {
@@ -247,8 +276,9 @@ export function CarriersTab() {
       });
       setRateForm({ wilaya: '', home_price: 0, desk_price: 0 });
       carriersApi.rates(selectedCarrier).then(setRates);
+      toast.success('Rate added');
     } catch (e) {
-      alert(humanizeError(e, lang));
+      toast.error('Could not add rate', humanizeError(e, lang));
     }
   };
 
@@ -348,6 +378,8 @@ export function CarriersTab() {
 
 export function ProductsTab() {
   const { lang } = useApp();
+  const toast = useToast();
+  const confirmAction = useConfirm();
   const [items, setItems] = useState<ApiProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
@@ -377,9 +409,20 @@ export function ProductsTab() {
   };
 
   const remove = async (id: number) => {
-    if (!confirm('Delete this product?')) return;
-    await productsApi.remove(id);
-    refresh();
+    const ok = await confirmAction({
+      title: 'Delete this product?',
+      description: 'It will no longer appear in orders or the catalog.',
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await productsApi.remove(id);
+      toast.success('Product removed');
+      refresh();
+    } catch (e) {
+      toast.error('Delete failed', humanizeError(e, lang));
+    }
   };
 
   return (
@@ -447,6 +490,8 @@ const SHIP_COLOR: Record<ApiShipment['status'], string> = {
 
 export function ShipmentsTab() {
   const { lang } = useApp();
+  const toast = useToast();
+  const confirmAction = useConfirm();
   const [items, setItems] = useState<ApiShipment[]>([]);
   const [carriers, setCarriers] = useState<ApiCarrier[]>([]);
   const [orders, setOrders] = useState<ApiOrder[]>([]);
@@ -490,16 +535,28 @@ export function ShipmentsTab() {
     if (!next) return;
     try {
       await shipmentsApi.setStatus(s.id, next);
+      toast.success('Status advanced', `Now ${next.replace('_', ' ')}.`);
       refresh();
     } catch (e) {
-      alert(humanizeError(e, lang));
+      toast.error('Could not advance status', humanizeError(e, lang));
     }
   };
 
   const remove = async (id: number) => {
-    if (!confirm('Delete this shipment?')) return;
-    await shipmentsApi.remove(id);
-    refresh();
+    const ok = await confirmAction({
+      title: 'Delete this shipment?',
+      description: 'The tracking number will be released. This cannot be undone.',
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await shipmentsApi.remove(id);
+      toast.success('Shipment removed');
+      refresh();
+    } catch (e) {
+      toast.error('Delete failed', humanizeError(e, lang));
+    }
   };
 
   return (
@@ -578,6 +635,8 @@ const RETURN_STATUSES: ApiReturn['status'][] = ['requested', 'received', 'restoc
 
 export function ReturnsTab() {
   const { lang } = useApp();
+  const toast = useToast();
+  const confirmAction = useConfirm();
   const [items, setItems] = useState<ApiReturn[]>([]);
   const [orders, setOrders] = useState<ApiOrder[]>([]);
   const [stats, setStats] = useState<{ total: number; by_status: Record<string, number>; return_rate: number } | null>(null);
@@ -616,9 +675,20 @@ export function ReturnsTab() {
   };
 
   const remove = async (id: number) => {
-    if (!confirm('Delete this return record?')) return;
-    await returnsApi.remove(id);
-    refresh();
+    const ok = await confirmAction({
+      title: 'Delete this return record?',
+      description: 'Historical analytics will lose this entry.',
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await returnsApi.remove(id);
+      toast.success('Return removed');
+      refresh();
+    } catch (e) {
+      toast.error('Delete failed', humanizeError(e, lang));
+    }
   };
 
   return (
@@ -700,6 +770,8 @@ export function ReturnsTab() {
 
 export function TeamTab() {
   const { lang } = useApp();
+  const toast = useToast();
+  const confirmAction = useConfirm();
   const [items, setItems] = useState<ApiTeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
@@ -725,9 +797,20 @@ export function TeamTab() {
   };
 
   const remove = async (id: number) => {
-    if (!confirm('Remove this team member?')) return;
-    await teamApi.remove(id);
-    refresh();
+    const ok = await confirmAction({
+      title: 'Remove this team member?',
+      description: 'They will lose access immediately.',
+      confirmLabel: 'Remove',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await teamApi.remove(id);
+      toast.success('Team member removed');
+      refresh();
+    } catch (e) {
+      toast.error('Remove failed', humanizeError(e, lang));
+    }
   };
 
   const total_payout = items.reduce((acc, m) => acc + m.payout_due, 0);
@@ -791,6 +874,7 @@ export function TeamTab() {
 
 export function SettingsTab() {
   const { lang } = useApp();
+  const toast = useToast();
   const [settings, setSettings] = useState<ApiTenantSettings | null>(null);
   const [webhooks, setWebhooks] = useState<ApiWebhook[]>([]);
   const [events, setEvents] = useState<string[]>([]);
@@ -816,9 +900,11 @@ export function SettingsTab() {
       const updated = await settingsApi.update(settings);
       setSettings(updated);
       setSaved(true);
+      toast.success('Settings saved');
       setTimeout(() => setSaved(false), 2000);
     } catch (e) {
       setErr(humanizeError(e, lang));
+      toast.error('Could not save', humanizeError(e, lang));
     }
   };
 
@@ -828,9 +914,10 @@ export function SettingsTab() {
       const created = await webhooksApi.create({ event: whForm.event, url: whForm.url });
       if (created.secret) setJustCreatedSecret(created.secret);
       setWhForm({ event: 'order.created', url: '' });
+      toast.success('Webhook added', 'Copy the secret below — it is only shown once.');
       refresh();
     } catch (e) {
-      alert(humanizeError(e, lang));
+      toast.error('Could not add webhook', humanizeError(e, lang));
     }
   };
 

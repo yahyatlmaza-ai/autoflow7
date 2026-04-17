@@ -5,9 +5,12 @@ import {
   Package, Users, Truck, BarChart3, Bell, LogOut, RefreshCw, Plus,
   CheckCircle, XCircle, Clock, Search, X, AlertCircle, Sun, Moon,
   Download, Send, Store, Globe, Box, Send as SendIcon, CornerDownLeft,
-  UserCog, Settings as SettingsIcon, Menu,
+  UserCog, Settings as SettingsIcon, Menu, History, Target,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../components/Toast';
+import { useConfirm } from '../components/ConfirmDialog';
+import OrderTimelineModal from '../components/OrderTimelineModal';
 import Logo from '../components/Logo';
 import TrialExpiredWall from '../components/TrialExpiredWall';
 import {
@@ -93,10 +96,12 @@ function Overview() {
   if (err) return <div className="p-4 bg-red-900/20 border border-red-700/40 rounded-2xl text-red-300">{err}</div>;
   if (!stats) return null;
 
+  const conversionPct = Math.round(((stats.rates?.conversion_rate ?? 0)) * 100);
   const cards = [
     { label: 'Total Orders', value: stats.totals.orders, icon: Package, color: 'from-indigo-500 to-violet-500' },
     { label: 'Delivered', value: stats.by_status.delivered, icon: CheckCircle, color: 'from-green-500 to-emerald-500' },
     { label: 'Pending', value: stats.by_status.pending, icon: Clock, color: 'from-amber-500 to-orange-500' },
+    { label: 'Conversion', value: `${conversionPct}%`, icon: Target, color: 'from-cyan-500 to-sky-500' },
     { label: 'Revenue (DZD)', value: formatCurrency(stats.totals.revenue_delivered), icon: BarChart3, color: 'from-rose-500 to-pink-500' },
   ];
 
@@ -105,7 +110,7 @@ function Overview() {
   return (
     <div className="space-y-6">
       <TrialBanner />
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {cards.map(c => (
           <motion.div
             key={c.label}
@@ -117,6 +122,9 @@ function Overview() {
             </div>
             <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">{c.label}</p>
             <p className="text-2xl font-black text-gray-900 dark:text-white mt-1">{c.value}</p>
+            {c.label === 'Conversion' && (
+              <p className="text-[11px] text-gray-400 mt-0.5">delivered / non-cancelled</p>
+            )}
           </motion.div>
         ))}
       </div>
@@ -168,6 +176,8 @@ function Overview() {
 
 function OrdersTab() {
   const { lang } = useApp();
+  const toast = useToast();
+  const confirmAction = useConfirm();
   const [orders, setOrders] = useState<ApiOrder[]>([]);
   const [customers, setCustomers] = useState<ApiCustomer[]>([]);
   const [agents, setAgents] = useState<ApiAgent[]>([]);
@@ -177,6 +187,7 @@ function OrdersTab() {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [showNew, setShowNew] = useState(false);
+  const [timelineOrder, setTimelineOrder] = useState<ApiOrder | null>(null);
 
   const refresh = useCallback(() => {
     setLoading(true);
@@ -207,21 +218,46 @@ function OrdersTab() {
     if (!next) return;
     try {
       await ordersApi.status(o.id, next);
+      toast.success('Order advanced', `${o.reference} → ${STATUS_LABEL[next].toLowerCase()}`);
       refresh();
     } catch (e) {
-      alert(humanizeError(e, lang));
+      toast.error('Could not advance order', humanizeError(e, lang));
     }
   };
 
   const bulk = async (action: 'confirm' | 'cancel') => {
     if (selected.size === 0) return;
+    const count = selected.size;
+    const ok = await confirmAction({
+      title: action === 'confirm'
+        ? `Confirm ${count} order${count === 1 ? '' : 's'}?`
+        : `Cancel ${count} order${count === 1 ? '' : 's'}?`,
+      description: action === 'confirm'
+        ? 'Selected orders will move to Confirmed and customers will be notified.'
+        : 'Selected orders will be marked as Cancelled. This cannot be undone.',
+      confirmLabel: action === 'confirm' ? 'Confirm all' : 'Cancel all',
+      danger: action === 'cancel',
+    });
+    if (!ok) return;
     try {
       const fn = action === 'confirm' ? ordersApi.bulkConfirm : ordersApi.bulkCancel;
       await fn(Array.from(selected));
+      toast.success(
+        action === 'confirm' ? `${count} order${count === 1 ? '' : 's'} confirmed` : `${count} order${count === 1 ? '' : 's'} cancelled`,
+      );
       setSelected(new Set());
       refresh();
     } catch (e) {
-      alert(humanizeError(e, lang));
+      toast.error('Bulk action failed', humanizeError(e, lang));
+    }
+  };
+
+  const allVisibleSelected = orders.length > 0 && orders.every(o => selected.has(o.id));
+  const toggleSelectAll = () => {
+    if (allVisibleSelected) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(orders.map(o => o.id)));
     }
   };
 
@@ -246,10 +282,18 @@ function OrdersTab() {
           {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
         {selected.size > 0 && (
-          <>
-            <button onClick={() => bulk('confirm')} className="px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-bold rounded-xl">Confirm {selected.size}</button>
-            <button onClick={() => bulk('cancel')} className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-xl">Cancel {selected.size}</button>
-          </>
+          <div className="flex items-center gap-2 px-3 py-2 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800/50 rounded-xl">
+            <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300">{selected.size} selected</span>
+            <button onClick={() => bulk('confirm')} className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-lg inline-flex items-center gap-1">
+              <CheckCircle className="w-3.5 h-3.5" /> Confirm
+            </button>
+            <button onClick={() => bulk('cancel')} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg inline-flex items-center gap-1">
+              <XCircle className="w-3.5 h-3.5" /> Cancel
+            </button>
+            <button onClick={() => setSelected(new Set())} className="p-1.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 rounded-lg" aria-label="Clear selection">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
         )}
         <a
           href={ordersApi.exportCsvUrl()}
@@ -272,7 +316,14 @@ function OrdersTab() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 dark:bg-gray-800/50">
               <tr className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                <th className="px-4 py-3 text-left w-10"></th>
+                <th className="px-4 py-3 text-left w-10">
+                  <input
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={toggleSelectAll}
+                    aria-label="Select all orders"
+                  />
+                </th>
                 <th className="px-4 py-3 text-left">Reference</th>
                 <th className="px-4 py-3 text-left">Customer</th>
                 <th className="px-4 py-3 text-left">Product</th>
@@ -308,14 +359,24 @@ function OrdersTab() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {o.status !== 'delivered' && o.status !== 'cancelled' && (
+                      <div className="inline-flex items-center gap-1 justify-end">
                         <button
-                          onClick={() => advanceStatus(o)}
-                          className="px-3 py-1.5 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg inline-flex items-center gap-1"
+                          onClick={() => setTimelineOrder(o)}
+                          className="p-1.5 text-gray-500 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg"
+                          title="View timeline"
+                          aria-label="View timeline"
                         >
-                          <Send className="w-3 h-3" /> Advance
+                          <History className="w-4 h-4" />
                         </button>
-                      )}
+                        {o.status !== 'delivered' && o.status !== 'cancelled' && (
+                          <button
+                            onClick={() => advanceStatus(o)}
+                            className="px-3 py-1.5 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg inline-flex items-center gap-1"
+                          >
+                            <Send className="w-3 h-3" /> Advance
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -326,6 +387,7 @@ function OrdersTab() {
       </div>
 
       {showNew && <NewOrderModal customers={customers} agents={agents} onClose={() => setShowNew(false)} onCreated={() => { setShowNew(false); refresh(); }} />}
+      {timelineOrder && <OrderTimelineModal order={timelineOrder} onClose={() => setTimelineOrder(null)} />}
     </div>
   );
 }
@@ -416,6 +478,8 @@ function NewOrderModal({
 
 function CustomersTab() {
   const { lang } = useApp();
+  const toast = useToast();
+  const confirmAction = useConfirm();
   const [items, setItems] = useState<ApiCustomer[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
@@ -447,9 +511,20 @@ function CustomersTab() {
   };
 
   const remove = async (id: number) => {
-    if (!confirm('Delete this customer?')) return;
-    try { await customersApi.remove(id); refresh(); }
-    catch (e) { alert(humanizeError(e, lang)); }
+    const ok = await confirmAction({
+      title: 'Delete this customer?',
+      description: 'Linked orders stay, but the customer profile will be removed.',
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await customersApi.remove(id);
+      toast.success('Customer removed');
+      refresh();
+    } catch (e) {
+      toast.error('Delete failed', humanizeError(e, lang));
+    }
   };
 
   return (
@@ -516,6 +591,7 @@ function CustomersTab() {
 
 function AgentsTab() {
   const { lang } = useApp();
+  const toast = useToast();
   const [items, setItems] = useState<ApiAgent[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
@@ -544,8 +620,13 @@ function AgentsTab() {
   };
 
   const toggle = async (a: ApiAgent) => {
-    try { await agentsApi.update(a.id, { active: !a.active }); refresh(); }
-    catch (e) { alert(humanizeError(e, lang)); }
+    try {
+      await agentsApi.update(a.id, { active: !a.active });
+      toast.success(a.active ? 'Agent deactivated' : 'Agent activated');
+      refresh();
+    } catch (e) {
+      toast.error('Update failed', humanizeError(e, lang));
+    }
   };
 
   return (

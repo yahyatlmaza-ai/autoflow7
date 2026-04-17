@@ -205,6 +205,10 @@ export interface ApiDashboardStats {
     revenue_delivered: number;
   };
   by_status: Record<OrderStatus, number>;
+  rates?: {
+    conversion_rate: number;
+    fulfilment_rate: number;
+  };
   daily_30d: Array<{ date: string; orders: number; delivered: number; revenue: number }>;
   top_agents: Array<{ id: number; name: string; zone: string; delivered: number; total: number }>;
 }

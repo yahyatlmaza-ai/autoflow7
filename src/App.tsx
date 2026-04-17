@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
+import { ToastProvider } from './components/Toast';
+import { ConfirmProvider } from './components/ConfirmDialog';
 import Navbar from './components/Navbar';
 import WhatsAppButton from './components/WhatsAppButton';
 import ScrollToTop from './components/ui/ScrollToTop';
@@ -38,7 +40,11 @@ function AppRoutes() {
 export default function App() {
   return (
     <AppProvider>
-      <AppRoutes />
+      <ToastProvider>
+        <ConfirmProvider>
+          <AppRoutes />
+        </ConfirmProvider>
+      </ToastProvider>
     </AppProvider>
   );
 }

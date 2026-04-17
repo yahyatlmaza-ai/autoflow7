@@ -65,6 +65,14 @@ def stats(
         })
     top_agents.sort(key=lambda r: r["delivered"], reverse=True)
 
+    delivered_count = by_status.get("delivered", 0)
+    cancelled_count = by_status.get("cancelled", 0)
+    # Conversion rate = delivered / non-cancelled; avoids penalising fraud cancellations.
+    non_cancelled = total - cancelled_count
+    conversion_rate = (delivered_count / non_cancelled) if non_cancelled > 0 else 0.0
+    # Fulfilment rate over the whole pipeline (including cancelled orders).
+    fulfilment_rate = (delivered_count / total) if total > 0 else 0.0
+
     return {
         "totals": {
             "orders": total,
@@ -77,8 +85,12 @@ def stats(
             "pending": by_status.get("pending", 0),
             "confirmed": by_status.get("confirmed", 0),
             "shipped": by_status.get("shipped", 0),
-            "delivered": by_status.get("delivered", 0),
-            "cancelled": by_status.get("cancelled", 0),
+            "delivered": delivered_count,
+            "cancelled": cancelled_count,
+        },
+        "rates": {
+            "conversion_rate": round(conversion_rate, 4),
+            "fulfilment_rate": round(fulfilment_rate, 4),
         },
         "daily_30d": [
             {"date": d, **daily[d]} for d in sorted(daily.keys())
