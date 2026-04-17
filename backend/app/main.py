@@ -1,8 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .database import init_db
+from .database import engine, init_db
 from .errors import register_error_handlers
+from .migrations import maybe_migrate_sqlite_to_target
 from .routers import (
     agents,
     auth,
@@ -38,6 +39,15 @@ register_error_handlers(app)
 @app.on_event("startup")
 def on_startup() -> None:
     init_db()
+    # One-shot SQLite -> Postgres migration (runs only when DATABASE_URL
+    # points at Postgres, /data/app.db exists, and the Postgres side is
+    # empty). Safe to call on every boot: it no-ops afterwards.
+    try:
+        maybe_migrate_sqlite_to_target(engine)
+    except Exception:  # noqa: BLE001
+        # Never crash the API on migration failure — log and continue.
+        import logging
+        logging.getLogger("autoflow").exception("sqlite->postgres migration failed")
 
 
 @app.get("/healthz")
