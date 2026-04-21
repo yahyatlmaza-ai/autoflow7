@@ -89,9 +89,13 @@ def signup(body: SignupRequest, session: Session = Depends(get_session)) -> Auth
         suffix += 1
         slug = f"{base_slug}-{suffix}"
 
+    # Create tenant + user + welcome notification in a single transaction so a
+    # partial failure (e.g. email uniqueness race on the user INSERT) can't
+    # leave an orphan tenant behind. flush() populates auto-generated PKs
+    # without committing; a single commit() at the end is atomic.
     tenant = Tenant(name=body.company_name or body.full_name, slug=slug, plan="trial")
     session.add(tenant)
-    session.commit()
+    session.flush()
     session.refresh(tenant)
 
     user = User(
@@ -104,7 +108,7 @@ def signup(body: SignupRequest, session: Session = Depends(get_session)) -> Auth
         email_verified=True,  # OTP flow can be layered on later
     )
     session.add(user)
-    session.commit()
+    session.flush()
     session.refresh(user)
 
     # Welcome notification + trial status.
@@ -114,7 +118,7 @@ def signup(body: SignupRequest, session: Session = Depends(get_session)) -> Auth
             user_id=user.id,
             kind="generic",
             title="Welcome to auto Flow",
-            body=f"Your 14-day free trial has started. It ends on {tenant.trial_end:%Y-%m-%d}.",
+            body=f"Your free trial has started. It ends on {tenant.trial_end:%Y-%m-%d}.",
         )
     )
     session.commit()

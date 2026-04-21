@@ -16,11 +16,14 @@ from ..deps import get_current_tenant, get_current_user, require_active_subscrip
 from ..errors import AppError
 from ..models import (
     ALLOWED_TRANSITIONS,
+    ConfirmationAttempt,
     Customer,
     DeliveryAgent,
     Notification,
     Order,
     OrderStatusHistory,
+    ReturnItem,
+    Shipment,
     Tenant,
     User,
 )
@@ -206,11 +209,17 @@ def delete_order(
     session: Session = Depends(get_session),
 ) -> None:
     order = _get_owned(session, tenant, order_id)
-    # Cascade delete history rows so SQLite FK constraints don't complain.
+    # Cascade-delete every row that has a FK back to this order. Postgres enforces
+    # FK constraints by default, so missing any of these would 500 on delete.
     for h in session.exec(
         select(OrderStatusHistory).where(OrderStatusHistory.order_id == order.id)
     ).all():
         session.delete(h)
+    for model in (Shipment, ReturnItem, ConfirmationAttempt):
+        for row in session.exec(
+            select(model).where(model.order_id == order.id)  # type: ignore[arg-type]
+        ).all():
+            session.delete(row)
     session.delete(order)
     session.commit()
 
