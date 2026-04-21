@@ -1,6 +1,7 @@
 """Subscription + trial status."""
 from __future__ import annotations
 
+import os
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, status
@@ -8,9 +9,9 @@ from pydantic import BaseModel
 from sqlmodel import Session
 
 from ..database import get_session
-from ..deps import get_current_tenant
+from ..deps import get_current_tenant, get_current_user
 from ..errors import AppError
-from ..models import Tenant
+from ..models import Tenant, User
 
 router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
 
@@ -67,13 +68,37 @@ def status_(tenant: Tenant = Depends(get_current_tenant)) -> dict:
 def upgrade(
     body: UpgradeRequest,
     tenant: Tenant = Depends(get_current_tenant),
+    user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> dict:
-    """DEV-ONLY convenience: marks the subscription as paid without a real payment.
+    """Activate a paid plan for the tenant.
 
-    Production integrates with a payment gateway; this endpoint exists so the app
-    can demo the upgrade flow and escape a trial-expired state during testing.
+    This endpoint does NOT process a real payment; it just flips the tenant to
+    the requested plan. Because of that, it is restricted on two axes so it
+    cannot be abused:
+
+    1. Only the tenant owner (User.role == "owner") can call it. A staff user
+       cannot grant themselves VIP.
+    2. In production (default), it is disabled unless the operator explicitly
+       opts in by setting ``AUTOFLOW_ALLOW_DEV_UPGRADE=1``. This exists so QA
+       and self-hosted demos can still run the upgrade path without integrating
+       a payment gateway.
+
+    Once a real payment gateway is wired up, this endpoint should be replaced
+    by one that verifies a webhook/receipt from the gateway.
     """
+    if os.environ.get("AUTOFLOW_ALLOW_DEV_UPGRADE") != "1":
+        raise AppError(
+            code="UPGRADE_DISABLED",
+            message="Self-service upgrade is not available. Contact support to activate a paid plan.",
+            status_code=status.HTTP_403_FORBIDDEN,
+        )
+    if user.role != "owner":
+        raise AppError(
+            code="FORBIDDEN",
+            message="Only the account owner can change the subscription plan.",
+            status_code=status.HTTP_403_FORBIDDEN,
+        )
     plan_key = body.plan.lower()
     if plan_key not in PLANS:
         raise AppError(code="INVALID_PLAN", message="Unknown plan", status_code=400)

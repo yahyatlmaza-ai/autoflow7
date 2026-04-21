@@ -13,9 +13,28 @@ import Demo from './pages/Demo';
 import Admin from './pages/Admin';
 import { TermsPage, PrivacyPage } from './pages/LegalPages';
 
-function AppRoutes() {
-  const { user } = useApp();
+function AuthLoading() {
+  // Minimal placeholder shown during the async auth bootstrap (authApi.me()) so
+  // that a stored-JWT user landing on /dashboard doesn't flash to /login before
+  // the context resolves.
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-white dark:bg-gray-950">
+      <div className="flex items-center gap-3 text-gray-500 dark:text-gray-400">
+        <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+        <span className="text-sm font-medium">Loading…</span>
+      </div>
+    </div>
+  );
+}
 
+function RequireAuth({ children }: { children: React.ReactNode }) {
+  const { user, authChecked } = useApp();
+  if (!authChecked) return <AuthLoading />;
+  if (!user) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
+
+function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
@@ -32,8 +51,8 @@ function AppRoutes() {
         <Route path="/demo" element={<Demo />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
-        <Route path="/dashboard" element={user ? <Dashboard /> : <Navigate to="/login" replace />} />
-        <Route path="/admin" element={user ? <Admin /> : <Navigate to="/login" replace />} />
+        <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
+        <Route path="/admin" element={<RequireAuth><Admin /></RequireAuth>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
