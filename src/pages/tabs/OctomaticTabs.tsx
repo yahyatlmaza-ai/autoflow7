@@ -13,6 +13,7 @@ import { Plus, RefreshCw, Trash2, Send, AlertCircle, CheckCircle, Save } from 'l
 import { useApp } from '../../context/AppContext';
 import { useToast } from '../../components/Toast';
 import { useConfirm } from '../../components/ConfirmDialog';
+import Select from '../../components/Select';
 import {
   agentsApi, callcenterApi, carriersApi, codApi, commissionsApi, fraudApi,
   ordersApi, productsApi, returnsApi, settingsApi, shipmentsApi,
@@ -194,9 +195,11 @@ export function StoresTab() {
       <Section title="Add a store" subtitle="Paste the platform API credentials — they are stored encrypted and never shown again.">
         <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <input className={inputCls} placeholder="Store name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
-          <select className={inputCls} value={form.platform} onChange={e => setForm({ ...form, platform: e.target.value })}>
-            {platforms.map(p => <option key={p} value={p}>{p}</option>)}
-          </select>
+          <Select
+            value={form.platform}
+            onChange={v => setForm({ ...form, platform: v })}
+            options={platforms.map(p => ({ value: p, label: p }))}
+          />
           <input className={inputCls + ' md:col-span-2'} placeholder="Store URL (https://mystore.myshopify.com)" value={form.url} onChange={e => setForm({ ...form, url: e.target.value })} />
           <input className={inputCls} placeholder="API key" value={form.api_key} onChange={e => setForm({ ...form, api_key: e.target.value })} />
           <input className={inputCls} placeholder="API secret" type="password" value={form.api_secret} onChange={e => setForm({ ...form, api_secret: e.target.value })} />
@@ -328,9 +331,12 @@ export function CarriersTab() {
       <Section title="Add a carrier">
         <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <input className={inputCls} placeholder="Name (e.g. Yalidine Alger)" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
-          <select className={inputCls} value={form.provider} onChange={e => setForm({ ...form, provider: e.target.value })}>
-            {providers.map(p => <option key={p} value={p}>{p.replace(/_/g, ' ')}</option>)}
-          </select>
+          <Select
+            value={form.provider}
+            onChange={v => setForm({ ...form, provider: v })}
+            searchable
+            options={providers.map(p => ({ value: p, label: p.replace(/_/g, ' ') }))}
+          />
           <input className={inputCls} placeholder="API ID" value={form.api_id} onChange={e => setForm({ ...form, api_id: e.target.value })} />
           <input className={inputCls} placeholder="API token" type="password" value={form.api_token} onChange={e => setForm({ ...form, api_token: e.target.value })} />
           <button className={primaryBtn + ' md:col-span-2 justify-center'}><Plus className="w-4 h-4" /> Add carrier</button>
@@ -340,10 +346,13 @@ export function CarriersTab() {
       {selectedCarrier != null && (
         <Section title="Delivery rates (per wilaya)" subtitle="Home and desk prices per Algerian wilaya for the selected carrier.">
           <form onSubmit={addRate} className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
-            <select className={inputCls} value={rateForm.wilaya} onChange={e => setRateForm({ ...rateForm, wilaya: e.target.value })} required>
-              <option value="">Select wilaya…</option>
-              {wilayas.map(w => <option key={w} value={w}>{w}</option>)}
-            </select>
+            <Select
+              value={rateForm.wilaya}
+              onChange={v => setRateForm({ ...rateForm, wilaya: v })}
+              placeholder="Select wilaya…"
+              searchable
+              options={wilayas.map(w => ({ value: w, label: w }))}
+            />
             <input className={inputCls} type="number" min={0} placeholder="Home price" value={rateForm.home_price} onChange={e => setRateForm({ ...rateForm, home_price: Number(e.target.value) })} />
             <input className={inputCls} type="number" min={0} placeholder="Desk price" value={rateForm.desk_price} onChange={e => setRateForm({ ...rateForm, desk_price: Number(e.target.value) })} />
             <button className={primaryBtn + ' justify-center'}><Plus className="w-4 h-4" /> Add</button>
@@ -611,18 +620,30 @@ export function ShipmentsTab() {
 
       <Section title="Create a shipment">
         <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <select className={inputCls} value={form.order_id} onChange={e => setForm({ ...form, order_id: e.target.value })} required>
-            <option value="">Select order…</option>
-            {orders.map(o => <option key={o.id} value={o.id}>{o.reference} — {o.product_name}</option>)}
-          </select>
-          <select className={inputCls} value={form.carrier_id} onChange={e => setForm({ ...form, carrier_id: e.target.value })}>
-            <option value="">No carrier</option>
-            {carriers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-          <select className={inputCls} value={form.delivery_type} onChange={e => setForm({ ...form, delivery_type: e.target.value as 'home' | 'desk' })}>
-            <option value="home">Home delivery</option>
-            <option value="desk">Desk pickup</option>
-          </select>
+          <Select
+            value={String(form.order_id ?? '')}
+            onChange={v => setForm({ ...form, order_id: v })}
+            placeholder="Select order…"
+            searchable={orders.length > 8}
+            options={orders.map(o => ({ value: String(o.id), label: o.reference, hint: o.product_name }))}
+          />
+          <Select
+            value={String(form.carrier_id ?? '')}
+            onChange={v => setForm({ ...form, carrier_id: v })}
+            placeholder="No carrier"
+            options={[
+              { value: '', label: 'No carrier' },
+              ...carriers.map(c => ({ value: String(c.id), label: c.name })),
+            ]}
+          />
+          <Select
+            value={form.delivery_type}
+            onChange={v => setForm({ ...form, delivery_type: v as 'home' | 'desk' })}
+            options={[
+              { value: 'home', label: 'Home delivery' },
+              { value: 'desk', label: 'Desk pickup' },
+            ]}
+          />
           <input className={inputCls} type="number" min={0} placeholder="Cost (DZD)" value={form.cost} onChange={e => setForm({ ...form, cost: Number(e.target.value) })} />
           <button className={primaryBtn + ' md:col-span-4 justify-center'}><Plus className="w-4 h-4" /> Create shipment</button>
         </form>
@@ -744,9 +765,12 @@ export function ReturnsTab() {
                     <td className="px-3 py-2 text-gray-500">#{r.order_id}</td>
                     <td className="px-3 py-2 text-gray-900 dark:text-white">{r.reason || '—'}</td>
                     <td className="px-3 py-2">
-                      <select value={r.status} onChange={e => setStatus(r, e.target.value as ApiReturn['status'])} className={inputCls}>
-                        {RETURN_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
+                      <Select
+                        value={r.status}
+                        onChange={v => setStatus(r, v as ApiReturn['status'])}
+                        size="sm"
+                        options={RETURN_STATUSES.map(s => ({ value: s, label: s }))}
+                      />
                     </td>
                     <td className="px-3 py-2 text-gray-500 text-xs">{r.created_at ? new Date(r.created_at).toLocaleDateString() : '—'}</td>
                     <td className="px-3 py-2 text-right"><button onClick={() => remove(r.id)} className={dangerBtn}><Trash2 className="w-4 h-4" /></button></td>
@@ -760,13 +784,18 @@ export function ReturnsTab() {
 
       <Section title="Log a return">
         <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <select className={inputCls} value={form.order_id} onChange={e => setForm({ ...form, order_id: e.target.value })} required>
-            <option value="">Select order…</option>
-            {orders.map(o => <option key={o.id} value={o.id}>{o.reference} — {o.product_name}</option>)}
-          </select>
-          <select className={inputCls} value={form.status} onChange={e => setForm({ ...form, status: e.target.value as ApiReturn['status'] })}>
-            {RETURN_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
+          <Select
+            value={String(form.order_id ?? '')}
+            onChange={v => setForm({ ...form, order_id: v })}
+            placeholder="Select order…"
+            searchable={orders.length > 8}
+            options={orders.map(o => ({ value: String(o.id), label: o.reference, hint: o.product_name }))}
+          />
+          <Select
+            value={form.status}
+            onChange={v => setForm({ ...form, status: v as ApiReturn['status'] })}
+            options={RETURN_STATUSES.map(s => ({ value: s, label: s }))}
+          />
           <input className={inputCls + ' md:col-span-2'} placeholder="Reason" value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} />
           <textarea className={inputCls + ' md:col-span-2'} placeholder="Internal notes" rows={2} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
           <button className={primaryBtn + ' md:col-span-2 justify-center'}><Plus className="w-4 h-4" /> Log return</button>
@@ -864,12 +893,16 @@ export function TeamTab() {
       <Section title="Add a team member">
         <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <input className={inputCls} placeholder="Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
-          <select className={inputCls} value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}>
-            <option value="confirmer">Confirmer</option>
-            <option value="packer">Packer</option>
-            <option value="manager">Manager</option>
-            <option value="custom">Custom</option>
-          </select>
+          <Select
+            value={form.role}
+            onChange={v => setForm({ ...form, role: v })}
+            options={[
+              { value: 'confirmer', label: 'Confirmer' },
+              { value: 'packer', label: 'Packer' },
+              { value: 'manager', label: 'Manager' },
+              { value: 'custom', label: 'Custom' },
+            ]}
+          />
           <input className={inputCls} placeholder="Phone" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
           <input className={inputCls} placeholder="Email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
           <input className={inputCls} type="number" min={0} placeholder="Pay per confirmed (DZD)" value={form.pay_per_confirmed} onChange={e => setForm({ ...form, pay_per_confirmed: Number(e.target.value) })} />
@@ -1025,9 +1058,11 @@ export function SettingsTab() {
         )}
 
         <form onSubmit={addWebhook} className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
-          <select className={inputCls} value={whForm.event} onChange={e => setWhForm({ ...whForm, event: e.target.value })}>
-            {events.map(ev => <option key={ev} value={ev}>{ev}</option>)}
-          </select>
+          <Select
+            value={whForm.event}
+            onChange={v => setWhForm({ ...whForm, event: v })}
+            options={events.map(ev => ({ value: ev, label: ev }))}
+          />
           <input className={inputCls + ' md:col-span-2'} placeholder="https://example.com/hook" value={whForm.url} onChange={e => setWhForm({ ...whForm, url: e.target.value })} required />
           <button className={primaryBtn + ' md:col-span-3 justify-center'}><Plus className="w-4 h-4" /> Add webhook</button>
         </form>
@@ -1156,13 +1191,17 @@ export function CallCenterTab() {
             <form onSubmit={logCall} className="space-y-3 mt-4">
               <div>
                 <label className="text-xs font-bold text-gray-700 dark:text-gray-300">Disposition</label>
-                <select value={callResult} onChange={e => setCallResult(e.target.value as typeof callResult)} className={inputCls}>
-                  <option value="no_answer">No answer</option>
-                  <option value="confirmed">Confirmed</option>
-                  <option value="rejected">Rejected</option>
-                  <option value="callback">Callback requested</option>
-                  <option value="wrong_number">Wrong number</option>
-                </select>
+                <Select
+                  value={callResult}
+                  onChange={v => setCallResult(v as typeof callResult)}
+                  options={[
+                    { value: 'no_answer', label: 'No answer' },
+                    { value: 'confirmed', label: 'Confirmed' },
+                    { value: 'rejected', label: 'Rejected' },
+                    { value: 'callback', label: 'Callback requested' },
+                    { value: 'wrong_number', label: 'Wrong number' },
+                  ]}
+                />
               </div>
               <div>
                 <label className="text-xs font-bold text-gray-700 dark:text-gray-300">Note</label>
@@ -1625,10 +1664,13 @@ export function WarehousesTab() {
             </ul>
           )}
           <form onSubmit={saveStock} className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <select className={inputCls} value={stockForm.product_id} onChange={e => setStockForm({ ...stockForm, product_id: Number(e.target.value) })}>
-              <option value={0}>Pick product…</option>
-              {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+            <Select
+              value={String(stockForm.product_id || '')}
+              onChange={v => setStockForm({ ...stockForm, product_id: Number(v) || 0 })}
+              placeholder="Pick product…"
+              searchable={products.length > 8}
+              options={products.map(p => ({ value: String(p.id), label: p.name }))}
+            />
             <input type="number" min={0} className={inputCls} placeholder="Quantity" value={stockForm.qty} onChange={e => setStockForm({ ...stockForm, qty: parseInt(e.target.value) || 0 })} />
             <button className={primaryBtn + ' justify-center'}><Save className="w-4 h-4" /> Set stock</button>
           </form>
@@ -1637,18 +1679,25 @@ export function WarehousesTab() {
 
       <Section title="Transfer stock" subtitle="Move quantity from one warehouse to another">
         <form onSubmit={doTransfer} className="grid grid-cols-1 md:grid-cols-5 gap-3">
-          <select className={inputCls} value={transferForm.from_warehouse_id} onChange={e => setTransferForm({ ...transferForm, from_warehouse_id: Number(e.target.value) })} required>
-            <option value={0}>From…</option>
-            {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-          </select>
-          <select className={inputCls} value={transferForm.to_warehouse_id} onChange={e => setTransferForm({ ...transferForm, to_warehouse_id: Number(e.target.value) })} required>
-            <option value={0}>To…</option>
-            {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-          </select>
-          <select className={inputCls} value={transferForm.product_id} onChange={e => setTransferForm({ ...transferForm, product_id: Number(e.target.value) })} required>
-            <option value={0}>Product…</option>
-            {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
+          <Select
+            value={String(transferForm.from_warehouse_id || '')}
+            onChange={v => setTransferForm({ ...transferForm, from_warehouse_id: Number(v) || 0 })}
+            placeholder="From…"
+            options={warehouses.map(w => ({ value: String(w.id), label: w.name }))}
+          />
+          <Select
+            value={String(transferForm.to_warehouse_id || '')}
+            onChange={v => setTransferForm({ ...transferForm, to_warehouse_id: Number(v) || 0 })}
+            placeholder="To…"
+            options={warehouses.map(w => ({ value: String(w.id), label: w.name }))}
+          />
+          <Select
+            value={String(transferForm.product_id || '')}
+            onChange={v => setTransferForm({ ...transferForm, product_id: Number(v) || 0 })}
+            placeholder="Product…"
+            searchable={products.length > 8}
+            options={products.map(p => ({ value: String(p.id), label: p.name }))}
+          />
           <input type="number" min={1} className={inputCls} placeholder="Qty" value={transferForm.qty} onChange={e => setTransferForm({ ...transferForm, qty: parseInt(e.target.value) || 1 })} />
           <button className={primaryBtn + ' justify-center'}><Send className="w-4 h-4" /> Transfer</button>
         </form>
@@ -1731,10 +1780,13 @@ export function CodTab() {
 
       <Section title="Record daily cash" subtitle="Agent hands you cash at end of day — log it here">
         <form onSubmit={submit} className="grid grid-cols-1 md:grid-cols-5 gap-3">
-          <select className={inputCls} value={form.agent_id} onChange={e => setForm({ ...form, agent_id: Number(e.target.value) })}>
-            <option value={0}>Agent…</option>
-            {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-          </select>
+          <Select
+            value={String(form.agent_id || '')}
+            onChange={v => setForm({ ...form, agent_id: Number(v) || 0 })}
+            placeholder="Agent…"
+            searchable={agents.length > 8}
+            options={agents.map(a => ({ value: String(a.id), label: a.name }))}
+          />
           <input type="date" className={inputCls} value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
           <input type="number" step="0.01" min={0} className={inputCls} placeholder="Cash collected (DZD)" value={form.amount_collected} onChange={e => setForm({ ...form, amount_collected: parseFloat(e.target.value) || 0 })} required />
           <input className={inputCls} placeholder="Notes (optional)" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
@@ -1749,10 +1801,17 @@ export function CodTab() {
           <div className="flex items-center gap-2 flex-wrap">
             <input type="date" className={inputCls + ' w-auto'} value={filter.start || ''} onChange={e => setFilter({ ...filter, start: e.target.value || undefined })} />
             <input type="date" className={inputCls + ' w-auto'} value={filter.end || ''} onChange={e => setFilter({ ...filter, end: e.target.value || undefined })} />
-            <select className={inputCls + ' w-auto'} value={filter.agent_id ?? ''} onChange={e => setFilter({ ...filter, agent_id: e.target.value ? Number(e.target.value) : undefined })}>
-              <option value="">All agents</option>
-              {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
+            <div className="min-w-[160px]">
+              <Select
+                value={String(filter.agent_id ?? '')}
+                onChange={v => setFilter({ ...filter, agent_id: v ? Number(v) : undefined })}
+                searchable={agents.length > 8}
+                options={[
+                  { value: '', label: 'All agents' },
+                  ...agents.map(a => ({ value: String(a.id), label: a.name })),
+                ]}
+              />
+            </div>
             <button onClick={download} className="px-4 py-2 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-900 dark:text-white text-sm font-bold rounded-xl inline-flex items-center gap-2">
               CSV
             </button>

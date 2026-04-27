@@ -203,6 +203,8 @@ export interface ApiDashboardStats {
     agents: number;
     revenue: number;
     revenue_delivered: number;
+    /** Average order value over delivered orders (DZD). Optional for back-compat. */
+    aov?: number;
   };
   by_status: Record<OrderStatus, number>;
   rates?: {
@@ -211,6 +213,8 @@ export interface ApiDashboardStats {
   };
   daily_30d: Array<{ date: string; orders: number; delivered: number; revenue: number }>;
   top_agents: Array<{ id: number; name: string; zone: string; delivered: number; total: number }>;
+  /** Top 5 wilayas by order count. Optional for back-compat with older backends. */
+  top_wilayas?: Array<{ wilaya: string; orders: number; delivered: number; revenue: number }>;
 }
 
 // ---------------------------------------------------------------------------

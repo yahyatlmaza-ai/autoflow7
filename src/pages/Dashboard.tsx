@@ -2,11 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
+  Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart,
+  ResponsiveContainer, Tooltip, XAxis, YAxis,
+} from 'recharts';
+import {
   Package, Users, Truck, BarChart3, Bell, LogOut, RefreshCw, Plus,
   CheckCircle, XCircle, Clock, Search, X, AlertCircle, Sun, Moon,
   Download, Send, Store, Globe, Box, Send as SendIcon, CornerDownLeft,
   UserCog, Settings as SettingsIcon, Menu, History, Target, Languages,
-  Phone, ShieldAlert, Coins, Warehouse, Wallet,
+  Phone, ShieldAlert, Coins, Warehouse, Wallet, ChevronDown, MapPin, Wallet as WalletIcon,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { t as tr, type Language } from '../lib/i18n';
@@ -15,6 +19,7 @@ import { useConfirm } from '../components/ConfirmDialog';
 import OrderTimelineModal from '../components/OrderTimelineModal';
 import Logo from '../components/Logo';
 import TrialExpiredWall from '../components/TrialExpiredWall';
+import Select from '../components/Select';
 import {
   agentsApi, customersApi, dashboardApi, notificationsApi, ordersApi,
   type ApiAgent, type ApiCustomer, type ApiDashboardStats, type ApiNotification,
@@ -117,6 +122,19 @@ function LangSwitch() {
   );
 }
 
+// Recharts colours — derived from the same indigo/violet/emerald palette as the
+// landing page so the dashboard feels like one product.
+const CHART_COLOURS = {
+  primary: '#6366f1',     // indigo-500
+  secondary: '#8b5cf6',   // violet-500
+  pending: '#f59e0b',     // amber-500
+  confirmed: '#3b82f6',   // blue-500
+  shipped: '#a78bfa',     // violet-400
+  delivered: '#10b981',   // emerald-500
+  cancelled: '#ef4444',   // red-500
+};
+const WILAYA_COLOURS = ['#6366f1', '#8b5cf6', '#a855f7', '#ec4899', '#f59e0b'];
+
 function Overview() {
   const [stats, setStats] = useState<ApiDashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -140,73 +158,205 @@ function Overview() {
   if (!stats) return null;
 
   const conversionPct = Math.round(((stats.rates?.conversion_rate ?? 0)) * 100);
-  const cards = [
-    { key: 'card_total_orders', value: stats.totals.orders, icon: Package, color: 'from-indigo-500 to-violet-500' },
-    { key: 'card_delivered', value: stats.by_status.delivered, icon: CheckCircle, color: 'from-green-500 to-emerald-500' },
-    { key: 'card_pending', value: stats.by_status.pending, icon: Clock, color: 'from-amber-500 to-orange-500' },
-    { key: 'card_conversion', value: `${conversionPct}%`, icon: Target, color: 'from-cyan-500 to-sky-500' },
-    { key: 'card_revenue', value: formatCurrency(stats.totals.revenue_delivered), icon: BarChart3, color: 'from-rose-500 to-pink-500' },
+  const aov = stats.totals.aov ?? 0;
+  const totalOrders = stats.totals.orders;
+
+  // 4 KPI cards — the metrics a merchant actually checks every morning.
+  const kpis: Array<{
+    key: string; sub?: string; value: string; icon: React.ComponentType<{ className?: string }>; tint: string;
+  }> = [
+    {
+      key: 'card_revenue',
+      sub: 'card_revenue_sub',
+      value: `${formatCurrency(stats.totals.revenue_delivered)} DZD`,
+      icon: WalletIcon,
+      tint: 'from-indigo-500 to-violet-500',
+    },
+    {
+      key: 'card_total_orders',
+      sub: 'card_total_orders_sub',
+      value: formatCurrency(totalOrders),
+      icon: Package,
+      tint: 'from-rose-500 to-pink-500',
+    },
+    {
+      key: 'card_conversion',
+      sub: 'card_conversion_sub',
+      value: `${conversionPct}%`,
+      icon: Target,
+      tint: 'from-emerald-500 to-green-500',
+    },
+    {
+      key: 'card_aov',
+      sub: 'card_aov_sub',
+      value: `${formatCurrency(aov)} DZD`,
+      icon: BarChart3,
+      tint: 'from-amber-500 to-orange-500',
+    },
   ];
 
-  const maxOrders = Math.max(1, ...stats.daily_30d.map(d => d.orders));
+  const noData = totalOrders === 0;
+
+  // Format daily series as compact “MM-DD” — the full date is shown in the tooltip.
+  const dailySeries = stats.daily_30d.map(d => ({
+    ...d,
+    short: d.date.slice(5),
+  }));
+
+  const statusKeys: OrderStatus[] = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
+  const statusSeries = statusKeys.map(k => ({
+    name: tr(lang, `status_${k}`),
+    value: stats.by_status[k] ?? 0,
+    fill: (CHART_COLOURS as Record<string, string>)[k] ?? CHART_COLOURS.primary,
+  })).filter(r => r.value > 0);
+
+  const wilayaSeries = (stats.top_wilayas ?? []).map((w, i) => ({
+    name: w.wilaya || '—',
+    value: w.orders,
+    fill: WILAYA_COLOURS[i % WILAYA_COLOURS.length],
+  }));
 
   return (
     <div className="space-y-6">
       <TrialBanner />
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        {cards.map(c => (
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {kpis.map(c => (
           <motion.div
             key={c.key}
             whileHover={{ y: -2 }}
-            className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5"
+            className="relative overflow-hidden bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5"
           >
-            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${c.color} flex items-center justify-center mb-3`}>
+            <div className={`absolute -top-10 -right-10 w-32 h-32 rounded-full bg-gradient-to-br ${c.tint} opacity-10 blur-2xl pointer-events-none`} />
+            <div className={`relative w-10 h-10 rounded-xl bg-gradient-to-br ${c.tint} flex items-center justify-center mb-3 shadow-sm`}>
               <c.icon className="w-5 h-5 text-white" />
             </div>
-            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">{tr(lang, c.key)}</p>
-            <p className="text-2xl font-black text-gray-900 dark:text-white mt-1">{c.value}</p>
-            {c.key === 'card_conversion' && (
-              <p className="text-[11px] text-gray-400 mt-0.5">{tr(lang, 'card_conversion_sub')}</p>
+            <p className="relative text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{tr(lang, c.key)}</p>
+            <p className="relative text-2xl font-black text-gray-900 dark:text-white mt-1">{c.value}</p>
+            {c.sub && (
+              <p className="relative text-[11px] text-gray-400 mt-0.5">{tr(lang, c.sub)}</p>
             )}
           </motion.div>
         ))}
       </div>
 
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5">
-        <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4">Last 30 days · orders</h3>
-        <div className="flex items-end gap-1 h-40">
-          {stats.daily_30d.map((d, i) => (
-            <div key={i} className="flex-1 flex flex-col items-center justify-end group">
-              <div
-                className="w-full bg-gradient-to-t from-indigo-500 to-violet-500 rounded-t transition-all"
-                style={{ height: `${(d.orders / maxOrders) * 100}%`, minHeight: d.orders > 0 ? 3 : 1 }}
-                title={`${d.date}: ${d.orders} orders, ${d.delivered} delivered`}
-              />
-            </div>
-          ))}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white">{tr(lang, 'chart_revenue_30d')}</h3>
+            <button
+              onClick={refresh}
+              className="p-1.5 rounded-lg text-gray-400 hover:text-indigo-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+              aria-label="Refresh"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          </div>
+          {noData ? (
+            <p className="text-sm text-gray-400 py-12 text-center">{tr(lang, 'chart_no_data')}</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={dailySeries} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="rev-grad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={CHART_COLOURS.primary} stopOpacity={0.4} />
+                    <stop offset="100%" stopColor={CHART_COLOURS.primary} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="short" tick={{ fontSize: 11 }} interval="preserveStartEnd" minTickGap={20} />
+                <YAxis tick={{ fontSize: 11 }} width={56} />
+                <Tooltip
+                  formatter={(v, n) => [
+                    typeof v === 'number' ? formatCurrency(v) : String(v ?? '—'),
+                    n === 'revenue' ? tr(lang, 'card_revenue') : String(n),
+                  ]}
+                  labelFormatter={l => `${l}`}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="revenue"
+                  name={tr(lang, 'card_revenue')}
+                  stroke={CHART_COLOURS.primary}
+                  strokeWidth={2.5}
+                  dot={false}
+                  activeDot={{ r: 5, fill: CHART_COLOURS.primary }}
+                  fill="url(#rev-grad)"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </div>
-        <p className="text-xs text-gray-400 mt-2">Hover bars for daily totals.</p>
+
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5">
+          <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4">{tr(lang, 'chart_status')}</h3>
+          {statusSeries.length === 0 ? (
+            <p className="text-sm text-gray-400 py-12 text-center">{tr(lang, 'chart_no_data')}</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={statusSeries} layout="vertical" margin={{ top: 4, right: 12, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={96} />
+                <Tooltip />
+                <Bar dataKey="value" radius={[0, 8, 8, 0]}>
+                  {statusSeries.map((s, i) => <Cell key={i} fill={s.fill} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
       </div>
 
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5">
-        <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-4">Top delivery agents</h3>
-        {stats.top_agents.length === 0 ? (
-          <p className="text-sm text-gray-400">No delivery agents yet. Add one from the Agents tab.</p>
+        <div className="flex items-center gap-2 mb-4">
+          <MapPin className="w-4 h-4 text-indigo-500" />
+          <h3 className="text-sm font-bold text-gray-900 dark:text-white">{tr(lang, 'chart_top_wilayas')}</h3>
+        </div>
+        {wilayaSeries.length === 0 ? (
+          <p className="text-sm text-gray-400 py-12 text-center">{tr(lang, 'chart_no_data')}</p>
         ) : (
-          <ul className="space-y-2">
-            {stats.top_agents.map(a => (
-              <li key={a.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/40 rounded-xl">
-                <div>
-                  <p className="font-semibold text-gray-900 dark:text-white">{a.name}</p>
-                  <p className="text-xs text-gray-500">{a.zone || 'no zone'}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-green-500">{a.delivered} delivered</p>
-                  <p className="text-xs text-gray-500">of {a.total}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie
+                  data={wilayaSeries}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={90}
+                  paddingAngle={2}
+                >
+                  {wilayaSeries.map((s, i) => <Cell key={i} fill={s.fill} />)}
+                </Pie>
+                <Tooltip />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+              </PieChart>
+            </ResponsiveContainer>
+            <ul className="space-y-2">
+              {wilayaSeries.map((w, i) => {
+                const wDetail = stats.top_wilayas?.[i];
+                return (
+                  <li key={w.name} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/40 rounded-xl">
+                    <div className="flex items-center gap-3">
+                      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: w.fill }} />
+                      <span className="font-semibold text-gray-900 dark:text-white">{w.name}</span>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">{w.value}</p>
+                      {wDetail && (
+                        <p className="text-[11px] text-gray-500">
+                          {wDetail.delivered} {tr(lang, 'status_delivered').toLowerCase()}
+                        </p>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         )}
       </div>
     </div>
@@ -316,14 +466,20 @@ function OrdersTab() {
             className="w-full pl-10 pr-3 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-indigo-500"
           />
         </div>
-        <select
-          value={filter}
-          onChange={e => setFilter(e.target.value as OrderStatus | '')}
-          className="px-3 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-indigo-500"
-        >
-          <option value="">All statuses</option>
-          {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
+        <div className="min-w-[180px]">
+          <Select
+            value={filter}
+            onChange={v => setFilter(v as OrderStatus | '')}
+            ariaLabel={tr(lang, 'ui_all_statuses')}
+            options={[
+              { value: '', label: tr(lang, 'ui_all_statuses') },
+              ...Object.entries(STATUS_LABEL).map(([k]) => ({
+                value: k,
+                label: tr(lang, `status_${k}`) || STATUS_LABEL[k as OrderStatus],
+              })),
+            ]}
+          />
+        </div>
         {selected.size > 0 && (
           <div className="flex items-center gap-2 px-3 py-2 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800/50 rounded-xl">
             <span className="text-xs font-bold text-indigo-700 dark:text-indigo-300">{selected.size} selected</span>
@@ -500,14 +656,26 @@ function NewOrderModal({
             <input type="number" min={1} value={form.quantity} onChange={e => setForm({ ...form, quantity: Number(e.target.value) })} placeholder="Quantity" className="px-3 py-2.5 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-indigo-500" />
             <input type="number" min={0} step="0.01" value={form.price} onChange={e => setForm({ ...form, price: Number(e.target.value) })} placeholder="Price (DZD)" className="px-3 py-2.5 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-indigo-500" />
           </div>
-          <select value={form.customer_id} onChange={e => setForm({ ...form, customer_id: e.target.value })} className="w-full px-3 py-2.5 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-indigo-500">
-            <option value="">No customer</option>
-            {customers.map(c => <option key={c.id} value={c.id}>{c.name} · {c.phone}</option>)}
-          </select>
-          <select value={form.agent_id} onChange={e => setForm({ ...form, agent_id: e.target.value })} className="w-full px-3 py-2.5 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-indigo-500">
-            <option value="">No agent</option>
-            {agents.map(a => <option key={a.id} value={a.id}>{a.name} · {a.zone}</option>)}
-          </select>
+          <Select
+            value={String(form.customer_id ?? '')}
+            onChange={v => setForm({ ...form, customer_id: v })}
+            placeholder="No customer"
+            searchable={customers.length > 6}
+            options={[
+              { value: '', label: 'No customer' },
+              ...customers.map(c => ({ value: String(c.id), label: c.name, hint: c.phone })),
+            ]}
+          />
+          <Select
+            value={String(form.agent_id ?? '')}
+            onChange={v => setForm({ ...form, agent_id: v })}
+            placeholder="No agent"
+            searchable={agents.length > 6}
+            options={[
+              { value: '', label: 'No agent' },
+              ...agents.map(a => ({ value: String(a.id), label: a.name, hint: a.zone })),
+            ]}
+          />
           <div className="grid grid-cols-2 gap-3">
             <input value={form.shipping_city} onChange={e => setForm({ ...form, shipping_city: e.target.value })} placeholder="City" className="px-3 py-2.5 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-indigo-500" />
             <input value={form.shipping_address} onChange={e => setForm({ ...form, shipping_address: e.target.value })} placeholder="Address" className="px-3 py-2.5 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-indigo-500" />
@@ -820,34 +988,64 @@ function NotificationsBell() {
 // Main Dashboard
 // ---------------------------------------------------------------------------
 
+type TabDef = { key: Tab; i18nKey: string; icon: React.ComponentType<{ className?: string }> };
+
+const ADVANCED_TABS: ReadonlyArray<Tab> = [
+  'callcenter', 'agents', 'warehouses', 'cod', 'commissions', 'fraud', 'team',
+];
+
 export default function Dashboard() {
   const { user, tenant, subscription, signOut, theme, setTheme, platformSettings, lang } = useApp();
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('overview');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  // Persist the Advanced disclosure state — once a power user opens it we
+  // don't want to keep collapsing it on every page load.
+  const [advancedOpen, setAdvancedOpen] = useState<boolean>(() => {
+    try { return localStorage.getItem('autoflow-advanced-open') === '1'; }
+    catch { return false; }
+  });
+  const toggleAdvanced = useCallback(() => {
+    setAdvancedOpen(v => {
+      const n = !v;
+      try { localStorage.setItem('autoflow-advanced-open', n ? '1' : '0'); } catch { /* no-op */ }
+      return n;
+    });
+  }, []);
 
   const platformName = platformSettings?.platform_name || 'auto Flow';
   const [brandFirst, ...brandRest] = platformName.split(' ');
   const brandSecond = brandRest.join(' ');
 
-  const tabs: Array<{ key: Tab; i18nKey: string; icon: React.ComponentType<{ className?: string }> }> = useMemo(() => [
-    { key: 'overview', i18nKey: 'tab_overview', icon: BarChart3 },
-    { key: 'orders', i18nKey: 'tab_orders', icon: Package },
-    { key: 'callcenter', i18nKey: 'tab_callcenter', icon: Phone },
-    { key: 'customers', i18nKey: 'tab_customers', icon: Users },
-    { key: 'agents', i18nKey: 'tab_agents', icon: Truck },
-    { key: 'stores', i18nKey: 'tab_stores', icon: Store },
-    { key: 'carriers', i18nKey: 'tab_carriers', icon: Globe },
-    { key: 'products', i18nKey: 'tab_products', icon: Box },
-    { key: 'warehouses', i18nKey: 'tab_warehouses', icon: Warehouse },
-    { key: 'shipments', i18nKey: 'tab_shipments', icon: SendIcon },
-    { key: 'returns', i18nKey: 'tab_returns', icon: CornerDownLeft },
-    { key: 'cod', i18nKey: 'tab_cod', icon: Wallet },
-    { key: 'commissions', i18nKey: 'tab_commissions', icon: Coins },
-    { key: 'fraud', i18nKey: 'tab_fraud', icon: ShieldAlert },
-    { key: 'team', i18nKey: 'tab_team', icon: UserCog },
-    { key: 'settings', i18nKey: 'tab_settings', icon: SettingsIcon },
-  ], []);
+  // Two-tier sidebar: the daily merchant essentials always visible, the
+  // power-user surfaces (call center, COD, fraud, commissions, team\u2026)
+  // tucked behind a collapsible "Advanced" disclosure to keep the chrome
+  // calm for the typical merchant.
+  const { mainTabs, advancedTabs, allTabs } = useMemo(() => {
+    const all: TabDef[] = [
+      { key: 'overview', i18nKey: 'tab_overview', icon: BarChart3 },
+      { key: 'orders', i18nKey: 'tab_orders', icon: Package },
+      { key: 'customers', i18nKey: 'tab_customers', icon: Users },
+      { key: 'products', i18nKey: 'tab_products', icon: Box },
+      { key: 'stores', i18nKey: 'tab_stores', icon: Store },
+      { key: 'carriers', i18nKey: 'tab_carriers', icon: Globe },
+      { key: 'shipments', i18nKey: 'tab_shipments', icon: SendIcon },
+      { key: 'returns', i18nKey: 'tab_returns', icon: CornerDownLeft },
+      { key: 'callcenter', i18nKey: 'tab_callcenter', icon: Phone },
+      { key: 'agents', i18nKey: 'tab_agents', icon: Truck },
+      { key: 'warehouses', i18nKey: 'tab_warehouses', icon: Warehouse },
+      { key: 'cod', i18nKey: 'tab_cod', icon: Wallet },
+      { key: 'commissions', i18nKey: 'tab_commissions', icon: Coins },
+      { key: 'fraud', i18nKey: 'tab_fraud', icon: ShieldAlert },
+      { key: 'team', i18nKey: 'tab_team', icon: UserCog },
+      { key: 'settings', i18nKey: 'tab_settings', icon: SettingsIcon },
+    ];
+    return {
+      mainTabs: all.filter(t => !ADVANCED_TABS.includes(t.key) && t.key !== 'settings'),
+      advancedTabs: all.filter(t => ADVANCED_TABS.includes(t.key)),
+      allTabs: all,
+    };
+  }, []);
 
   const logout = () => { signOut(); navigate('/'); };
   const go = (k: Tab) => { setTab(k); setMobileNavOpen(false); };
@@ -856,8 +1054,29 @@ export default function Dashboard() {
   // expire keep their `plan` value (e.g. "professional") but flip
   // `active` to false, so a plan-string check alone misses them.
   const trialExpired = subscription != null && !subscription.active;
-  const activeLabel = tr(lang, tabs.find(t => t.key === tab)?.i18nKey ?? 'tab_overview');
+  const activeLabel = tr(lang, allTabs.find(t => t.key === tab)?.i18nKey ?? 'tab_overview');
   const userInitial = (user?.name || user?.email || 'U').trim().charAt(0).toUpperCase();
+
+  // If the user is on an advanced tab, force the disclosure open so they
+  // can see where they are. (Common case: deep link.)
+  const advancedActive = ADVANCED_TABS.includes(tab);
+  const advancedExpanded = advancedOpen || advancedActive;
+
+  const renderItem = (t: TabDef) => (
+    <button
+      key={t.key}
+      onClick={() => go(t.key)}
+      aria-current={tab === t.key ? 'page' : undefined}
+      className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold transition-all ${
+        tab === t.key
+          ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
+          : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+      }`}
+    >
+      <t.icon className="w-4 h-4 flex-shrink-0" />
+      <span className="truncate">{tr(lang, t.i18nKey)}</span>
+    </button>
+  );
 
   const Sidebar = (
     <aside className="w-60 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col flex-shrink-0 h-full">
@@ -884,21 +1103,32 @@ export default function Dashboard() {
         </div>
       )}
 
-      <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
-        {tabs.map(t => (
-          <button
-            key={t.key}
-            onClick={() => go(t.key)}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-              tab === t.key
-                ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
-                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
-            }`}
-          >
-            <t.icon className="w-5 h-5 flex-shrink-0" />
-            {tr(lang, t.i18nKey)}
-          </button>
-        ))}
+      <nav className="flex-1 px-2 py-3 overflow-y-auto">
+        <p className="px-3 pt-1 pb-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+          {tr(lang, 'nav_main')}
+        </p>
+        <div className="space-y-0.5">
+          {mainTabs.map(renderItem)}
+        </div>
+
+        <button
+          type="button"
+          onClick={toggleAdvanced}
+          aria-expanded={advancedExpanded}
+          className="w-full mt-4 px-3 py-1 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+        >
+          <span>{tr(lang, 'nav_advanced')}</span>
+          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${advancedExpanded ? 'rotate-180' : ''}`} />
+        </button>
+        {advancedExpanded && (
+          <div className="space-y-0.5 mt-1">
+            {advancedTabs.map(renderItem)}
+          </div>
+        )}
+
+        <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 space-y-0.5">
+          {renderItem({ key: 'settings', i18nKey: 'tab_settings', icon: SettingsIcon })}
+        </div>
       </nav>
 
       <div className="p-3 border-t border-gray-200 dark:border-gray-800">

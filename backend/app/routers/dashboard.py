@@ -35,12 +35,23 @@ def stats(
         day = (window_start + timedelta(days=i)).strftime("%Y-%m-%d")
         daily[day] = {"orders": 0, "delivered": 0, "revenue": 0.0}
 
+    by_wilaya: dict[str, dict[str, float]] = defaultdict(
+        lambda: {"orders": 0, "delivered": 0, "revenue": 0.0}
+    )
+
     for o in orders:
         by_status[o.status] += 1
         amount = (o.price or 0.0) * (o.quantity or 1)
         revenue += amount
         if o.status == "delivered":
             revenue_delivered += amount
+
+        wilaya = (o.wilaya or "—").strip() or "—"
+        by_wilaya[wilaya]["orders"] += 1
+        if o.status == "delivered":
+            by_wilaya[wilaya]["delivered"] += 1
+            by_wilaya[wilaya]["revenue"] += amount
+
         created = o.created_at
         if created is not None:
             created = created.replace(tzinfo=timezone.utc) if created.tzinfo is None else created
@@ -65,6 +76,12 @@ def stats(
         })
     top_agents.sort(key=lambda r: r["delivered"], reverse=True)
 
+    top_wilayas = sorted(
+        ({"wilaya": w, **vals} for w, vals in by_wilaya.items()),
+        key=lambda r: r["orders"],
+        reverse=True,
+    )[:5]
+
     delivered_count = by_status.get("delivered", 0)
     cancelled_count = by_status.get("cancelled", 0)
     # Conversion rate = delivered / non-cancelled; avoids penalising fraud cancellations.
@@ -72,6 +89,9 @@ def stats(
     conversion_rate = (delivered_count / non_cancelled) if non_cancelled > 0 else 0.0
     # Fulfilment rate over the whole pipeline (including cancelled orders).
     fulfilment_rate = (delivered_count / total) if total > 0 else 0.0
+    # Average order value over delivered orders only — that is what the
+    # merchant actually banked.
+    aov = (revenue_delivered / delivered_count) if delivered_count > 0 else 0.0
 
     return {
         "totals": {
@@ -80,6 +100,7 @@ def stats(
             "agents": len([a for a in agents if a.active]),
             "revenue": round(revenue, 2),
             "revenue_delivered": round(revenue_delivered, 2),
+            "aov": round(aov, 2),
         },
         "by_status": {
             "pending": by_status.get("pending", 0),
@@ -96,4 +117,5 @@ def stats(
             {"date": d, **daily[d]} for d in sorted(daily.keys())
         ],
         "top_agents": top_agents[:5],
+        "top_wilayas": top_wilayas,
     }
